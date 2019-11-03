@@ -159,13 +159,14 @@ clean_data_algae_nawqa <- function(
            sampling_location_name = SiteName,
            taxon_id = PublishedTaxonName,
            taxon_resolution = PublishedTaxonNameLevel)
-  
+ 
   dat_munging_sites <- dat_munging_2 %>%
     select(-taxon_id, -taxon_resolution) %>%
     mutate(collection_date = as.character(collection_date)) %>%
     group_by(sampling_location_id, sampling_location_name) %>%
     summarize(n_dates = collection_date %>% unique() %>% length(),
-              n_samples = sample_id %>% unique() %>% length())
+              n_samples = sample_id %>% unique() %>% length(),
+              collection_date = collection_date %>% unique()) #added date of collection
   
   dat_munging_taxa <- dat_munging_2 %>%
     select(sampling_location_id, taxon_id, taxon_resolution)
