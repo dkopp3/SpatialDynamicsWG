@@ -165,11 +165,10 @@ clean_data_algae_nawqa <- function(
     mutate(collection_date = as.character(collection_date)) %>%
     group_by(sampling_location_id, sampling_location_name) %>%
     summarize(n_dates = collection_date %>% unique() %>% length(),
-              n_samples = sample_id %>% unique() %>% length(),
-              collection_date = collection_date %>% unique()) #added date of collection
+              n_samples = sample_id %>% unique() %>% length()) 
   
   dat_munging_taxa <- dat_munging_2 %>%
-    select(sampling_location_id, taxon_id, taxon_resolution)
+    select(sampling_location_id, taxon_id, taxon_resolution, collection_date) #added date of collection
   
   dat_munging_out <- dat_munging_sites %>% left_join(dat_munging_taxa)
   
