@@ -1,8 +1,8 @@
-# Function for cleaning fish NAWQA Data on google drive
+# Function for cleaning algae NAWQA Data on google drive
 
 ####################################################################
 # -- Biodiveristy data munging template -- pop comm group -- Stream Resiliency RCN
-# -- -- updated 19 May 2019
+# -- -- updated 12 Feb 2019
 # -- -- Eric Sokol
 
 # What do:
@@ -14,8 +14,9 @@
 ##########################################
 # see this document: https://docs.google.com/document/d/19btPMPND8VeH-txR0owM8SaHZMKbqBg2PVBVd0ET-lw/edit?usp=sharing
 
-clean_data_fish_nawqa <- function(
-  my_path_to_googledirve_directory = NULL, # e.g. 'Spatial Dynamics WG/Pop-comm group/NAQWA_Biodata_All_NEW_November2018/FISH/HUC01_02'
+clean_data_algae_nawqa <- function(
+  my_path_to_googledirve_directory = NULL, # e.g. 'Spatial Dynamics WG/Pop-comm group/NAQWA_Biodata_All_NEW_November2018/ALGAE/HUC01_02'
+  my_google_drive_directory_id = NULL, 
   keep_local_output = FALSE
 ){
   ##########################################
@@ -28,8 +29,8 @@ clean_data_fish_nawqa <- function(
   library(googledrive)
   library(readxl)
   
-  if(is.null(my_path_to_googledirve_directory)){
-    stop('please provide path for my_path_to_googledirve_directory')
+  if(is.null(my_path_to_googledirve_directory) & is.null(my_google_drive_directory_id)){
+    stop('please provide path for my_path_to_googledirve_directory OR my_google_drive_directory_id')
   }
   
   ##########################################
@@ -47,7 +48,11 @@ clean_data_fish_nawqa <- function(
   ##########################################
   
   # using data in google drive in "Spatial Dynamics WG/Pop-comm group/New_Biodata_All/ALGAE/HUC01_02" filepath
-  my_list_of_files <- googledrive::drive_ls(my_path_to_googledirve_directory)
+  if(!is.null(my_path_to_googledirve_directory)){
+    my_list_of_files <- googledrive::drive_ls(my_path_to_googledirve_directory)
+  }else if(!is.null(my_google_drive_directory_id)){
+    my_list_of_files <- googledrive::drive_ls(my_google_drive_directory_id)
+  }
   
   # ---------- for .xlsx files -----------------------------------------------
   # finds "Results.xlsx" files in the dirctory -- there should only be one, and this is the raw data from NAWQA
@@ -83,25 +88,19 @@ clean_data_fish_nawqa <- function(
   # -- 1. filter out sample types that should not be included
   ##########################################
   
-  dat_munging <- dat_in %>% filter(SampleTypeCode == 'FISH') #select NAWQA fish data only
-  # Column: SampleTypeCode
-  # Description: Code indicating the type of sample collected
-  # Domain:
-  #   * FISH - NAWQA Fish
-  #   * FGEN - User-specified Fish
-  #   * FISH-W - NRSA Fish, wadable
-  #   * FISH-B - NRSA Fish, boatable (Large wadable or Boatable/Raftable)
+  dat_munging <- dat_in %>% filter(SampleTypeCode == 'AQMH') #select multihabitat sampling
+  # phytoplankton code to filter out "APHY"
   
   dat_munging$SiteVisitSampleNumber %>% unique() %>% length()
   dat_munging$SiteNumber %>% unique() %>% length()
   
-  # dat_munging$TotAreaSampled_cm2 %>% unique()
+  dat_munging$TotAreaSampled_cm2 %>% unique()
   
   ################################################################
   # -- 2. standardize by sampling effort
   ##########################################
   
-  # Talk to group to determine if we need to do anything.
+  # *pick only distes with multi-habitats -- done above -- selected AQMH site type codes
   
   ################################################################
   # -- 3. aggregate and standardize repeated observations at the same location
@@ -132,14 +131,13 @@ clean_data_fish_nawqa <- function(
     summarize(total_occurrence_in_data_set = sum(occurrence))
   
   # make table of single and double occurrence rate taxa (the rare stuff)
-  # taxon_singletons <- taxon_occurrence_rates %>% filter(total_occurrence_in_data_set ==1)
-  # taxon_doubletons <- taxon_occurrence_rates %>% filter(total_occurrence_in_data_set ==2)
+  taxon_singletons <- taxon_occurrence_rates %>% filter(total_occurrence_in_data_set ==1)
+  taxon_doubletons <- taxon_occurrence_rates %>% filter(total_occurrence_in_data_set ==2)
   
-  # taxon_rare_removed <- taxon_occurrence_rates %>% filter(total_occurrence_in_data_set > 2)
+  taxon_rare_removed <- taxon_occurrence_rates %>% filter(total_occurrence_in_data_set > 2)
   
-  # **not removing singletons or doubletons for fish at the moment**
   # remove single occurrence taxa
-  # dat_munging <- dat_munging %>% filter(!PublishedTaxonName %in% taxon_singletons$PublishedTaxonName)
+  dat_munging <- dat_munging %>% filter(!PublishedTaxonName %in% taxon_singletons$PublishedTaxonName)
   
   ################################################################
   # -- Write out data
@@ -170,9 +168,8 @@ clean_data_fish_nawqa <- function(
   dat_munging_sites <- dat_munging_2 %>%
     select(-taxon_id, -taxon_resolution) %>%
     mutate(collection_date = as.character(collection_date)) %>%
-    group_by(sampling_location_id, sampling_location_name) %>%
-    summarize(n_dates = collection_date %>% unique() %>% length(),
-              n_samples = sample_id %>% unique() %>% length())
+    group_by(sampling_location_id, sampling_location_name, collection_date) %>%
+    summarize(n_samples = sample_id %>% unique() %>% length())
   
   dat_munging_taxa <- dat_munging_2 %>%
     select(sampling_location_id, taxon_id, taxon_resolution)
